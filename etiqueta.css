@@ -1,0 +1,28 @@
+/* ---------- etiqueta térmica: desenhada em 80x40 mm e ampliada com --z ---------- */
+.lbl,.lbl *{box-sizing:border-box}
+.lbl{position:relative;width:80mm;height:39.7mm;padding:1.4mm 1.8mm;background:#fff;overflow:hidden;zoom:var(--z);border-radius:1.5mm;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.lbl .top{display:flex;justify-content:space-between;align-items:flex-start;height:8.6mm}
+.lbl .cnt{border:.45mm solid #000;border-radius:1.2mm;padding:.2mm 1.4mm;font-weight:900;font-size:3.6mm;line-height:1.2}
+.lbl .bcw{width:47mm;text-align:right}
+.lbl .bc{display:block;width:47mm;height:6mm}
+.lbl .up{font-size:2.5mm;letter-spacing:.35mm;line-height:1.1;margin-top:.3mm}
+.lbl .ln{font-size:2.45mm;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2mm}
+.lbl .ln2{display:flex;align-items:center;gap:1.2mm;font-size:2.4mm;line-height:1.25;margin-top:.2mm;white-space:nowrap}
+.lbl .ln2 .env{margin-left:auto;font-weight:700}
+.lbl .plat{background:#000;color:#fff;font-weight:900;font-size:2.6mm;padding:.15mm 1.2mm;border-radius:.8mm;letter-spacing:.1mm;white-space:nowrap}
+.lbl .body{display:flex;gap:1.6mm;margin-top:1.1mm;height:19.5mm}
+.lbl .ph{width:19.5mm;height:19.5mm;object-fit:cover;flex:none;filter:grayscale(1) contrast(1.15)}
+.lbl .qr{width:19.5mm;height:19.5mm;flex:none}
+.lbl .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:.5mm;padding-bottom:2mm}
+.lbl .sku{align-self:flex-start;max-width:100%;border:.45mm solid #000;border-radius:1.5mm;padding:.2mm 1.2mm;font-weight:900;font-size:3.5mm;line-height:1.2;word-break:break-all}
+.lbl .attr{font-weight:900;font-size:3.3mm;line-height:1.15}
+.lbl .qty{margin-left:2mm;background:#000;color:#fff;padding:0 1.2mm;border-radius:.8mm}
+.lbl .nm{font-size:2.3mm;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.lbl .sku.long{font-size:2.8mm}
+.lbl .sku.xlong{font-size:2.45mm}
+.lbl .tx{overflow:hidden}
+.lbl .tx.hasnote .nm{-webkit-line-clamp:2}
+.lbl .plat.long{font-size:2.05mm;padding:.15mm .7mm}
+.lbl .note{font-size:2.2mm;line-height:1.15;font-style:italic;max-height:2.6mm;overflow:hidden}
+.lbl .seq{position:absolute;right:1.8mm;bottom:.9mm;font-size:2.1mm;color:#000}
+
