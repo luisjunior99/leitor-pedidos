@@ -94,6 +94,12 @@ table.t{width:100%;border-collapse:collapse;background:#fff}
 .cam .msg{position:absolute;top:18px;left:0;right:0;text-align:center;color:#fff;font-weight:700;padding:0 16px}
 .cam .x,.zoom .x{position:absolute;bottom:26px;background:#fff;color:#000;border:0;border-radius:10px;padding:12px 22px;font-weight:800;font-size:16px}
 .zoom img{max-width:100%;max-height:100%}
+h2.sec{font-size:15px;margin:18px 2px 10px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.cgrid .card{margin:0}
+.cimgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cimgs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#eef1f6;cursor:zoom-in}
+.cimgs img.main{grid-column:1 / -1}
 @media (max-width:820px){
   .burger{display:block}
   .top .sync{display:none}
@@ -309,8 +315,8 @@ function bindSeg(){[].forEach.call(document.querySelectorAll('.seg button'),func
 /* ---- Consultar SKU ---- */
 var SKUQ='';
 function vSku(){
-  var h='<h1 class="pg">Consultar SKU</h1><div class="card"><form class="row" id="fsku"><div class="fld" style="flex:1"><label>SKU (ou parte dele)</label><input id="qsku" value="'+esc(SKUQ)+'" placeholder="Ex.: CM.22 ou MAIO-01" autocapitalize="characters"></div><button class="btn" type="submit">Buscar</button></form>'+
-    '<div class="muted" style="margin-top:8px;font-size:12.5px">Por enquanto a busca usa os pedidos sincronizados do UpSeller. Quando ligarmos o OneDrive, aparecem todos os SKUs com as artes.</div></div><div id="sres"></div>';
+  var h='<h1 class="pg">Consultar SKU</h1><div class="card"><form class="row" id="fsku"><div class="fld" style="flex:1"><label>SKU (ou parte dele)</label><input id="qsku" value="'+esc(SKUQ)+'" placeholder="Ex.: ALMO-05, KIT.BOIA, BOI-12, CM.22" autocapitalize="characters"></div><button class="btn" type="submit">Buscar</button></form>'+
+    '<div class="muted" id="cattot" style="margin-top:8px;font-size:12.5px">Busca no catálogo do OneDrive e nas vendas pendentes do UpSeller.</div></div><div id="sres"></div>';
   $('#main').innerHTML=h;
   $('#fsku').onsubmit=function(e){e.preventDefault();SKUQ=$('#qsku').value.trim();buscarSku()};
   if(SKUQ)buscarSku();
@@ -320,15 +326,31 @@ function buscarSku(){
   if(!PASS){showLogin('');return}
   if(SKUQ.length<2){$('#sres').innerHTML='<div class="empty">Digite pelo menos 2 letras.</div>';return}
   $('#sres').innerHTML='<div class="empty">Buscando…</div>';
-  rpc('qp_sku',{p_pass:PASS,p_q:SKUQ}).then(function(l){
-    l=l||[];if(!l.length){$('#sres').innerHTML='<div class="card empty">Nenhum SKU encontrado com "'+esc(SKUQ)+'".</div>';return}
-    var h='<div class="chips"><span class="chip"><b>'+l.length+'</b> variações encontradas</span></div>';
-    l.forEach(function(s){
-      h+='<div class="card"><div class="bigprod">'+img(s.img)+'<div><div class="sku">'+esc(s.sku)+'</div><div class="attr">'+esc(s.attr)+'</div>'+(s.name?'<div class="muted" style="font-size:12.5px">'+esc(s.name)+'</div>':'')+
-         '<div style="margin-top:6px"><span class="chip"><b>'+s.qty_pend+'</b> peças pendentes</span> <span class="chip"><b>'+s.ped_pend+'</b> pedidos pendentes</span></div></div></div>';
-      if(s.orders&&s.orders.length){h+='<div class="tw" style="margin-top:12px"><table class="t"><thead><tr><th>Pedido</th><th class="hm">Loja</th><th>Envio até</th><th>Qtd</th></tr></thead><tbody>'+
-        s.orders.map(function(o){return '<tr><td><a class="num" href="#ler" data-num="'+esc(o.num)+'">'+esc(o.num)+'</a> '+platTag(o.plat)+'</td><td class="hm">'+esc(o.shop)+'</td><td>'+esc(fmtDT(o.deadline))+'</td><td class="qty">'+o.qty+'</td></tr>'}).join('')+'</tbody></table></div>'}
-      h+='</div>'});
+  rpc('qp_busca_sku',{p_pass:PASS,p_q:SKUQ}).then(function(r){
+    r=r||{};var cat=r.catalogo||[],l=r.vendas||[];
+    $('#cattot').textContent='Catálogo do OneDrive: '+(r.total_catalogo||0)+' SKUs · também busca nas vendas pendentes do UpSeller.';
+    if(!cat.length&&!l.length){$('#sres').innerHTML='<div class="card empty">Nenhum SKU encontrado com "'+esc(SKUQ)+'".</div>';return}
+    var h='';
+    if(cat.length){
+      h+='<h2 class="sec">Catálogo (OneDrive) · '+cat.length+'</h2><div class="cgrid">';
+      cat.forEach(function(c){
+        var im=(c.imgs||[]);
+        h+='<div class="card citem"><div class="cimgs">'+(im.length?im.map(function(u,i){return '<img src="'+esc(u)+'" alt="" data-z="'+esc(u)+'" class="'+(i?'mini':'main')+'">'}).join(''):'<div class="ph"></div>')+'</div>'+
+           '<div class="sku" style="font-size:16px;margin-top:8px">'+esc(c.sku)+'</div><div class="muted" style="font-size:12.5px">'+esc(c.grupo||'')+'</div>'+
+           '<div style="margin-top:4px">'+esc(c.nome||'')+'</div>'+
+           '<div class="muted" style="font-size:11.5px;margin-top:6px">📁 '+esc(c.pasta||'')+((c.arquivos||[]).length?' · '+esc(c.arquivos.join(', ')):'')+'</div></div>';
+      });
+      h+='</div>';
+    }
+    if(l.length){
+      h+='<h2 class="sec">Vendas pendentes (UpSeller) · '+l.length+' variações</h2>';
+      l.forEach(function(s){
+        h+='<div class="card"><div class="bigprod">'+img(s.img)+'<div><div class="sku">'+esc(s.sku)+'</div><div class="attr">'+esc(s.attr)+'</div>'+(s.name?'<div class="muted" style="font-size:12.5px">'+esc(s.name)+'</div>':'')+
+           '<div style="margin-top:6px"><span class="chip"><b>'+s.qty_pend+'</b> peças pendentes</span> <span class="chip"><b>'+s.ped_pend+'</b> pedidos pendentes</span></div></div></div>';
+        if(s.orders&&s.orders.length){h+='<div class="tw" style="margin-top:12px"><table class="t"><thead><tr><th>Pedido</th><th class="hm">Loja</th><th>Envio até</th><th>Qtd</th></tr></thead><tbody>'+
+          s.orders.map(function(o){return '<tr><td><a class="num" href="#ler" data-num="'+esc(o.num)+'">'+esc(o.num)+'</a> '+platTag(o.plat)+'</td><td class="hm">'+esc(o.shop)+'</td><td>'+esc(fmtDT(o.deadline))+'</td><td class="qty">'+o.qty+'</td></tr>'}).join('')+'</tbody></table></div>'}
+        h+='</div>'});
+    }
     $('#sres').innerHTML=h;
     [].forEach.call(document.querySelectorAll('a[data-num]'),function(a){a.onclick=function(e){e.preventDefault();var n=a.getAttribute('data-num');QRDATA=null;location.hash='ler';setTimeout(function(){$('#qnum').value=n;loadOrder(n,null)},0)}});
   }).catch(function(e){$('#sres').innerHTML='<div class="err">'+esc(e.message)+'</div>'});
