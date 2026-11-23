@@ -97,6 +97,8 @@ table.t{width:100%;border-collapse:collapse;background:#fff}
 .cam .x,.zoom .x{position:absolute;bottom:26px;background:#fff;color:#000;border:0;border-radius:10px;padding:12px 22px;font-weight:800;font-size:16px}
 .zoom img{max-width:100%;max-height:100%}
 h2.sec{font-size:15px;margin:18px 2px 10px}
+.loja{white-space:nowrap;line-height:1.9}
+.loja b{font-weight:700}
 .selbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:10px;position:sticky;top:60px;z-index:5}
 .selbar .sp{flex:1}
 .selbar .ck{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer}
@@ -316,21 +318,21 @@ function drawEnvios(){
   h+='</div><div class="row no-print" style="margin-bottom:10px"><div class="seg"><button data-m="ped" class="'+(ENV.modo==='ped'?'on':'')+'">Por pedido</button><button data-m="sku" class="'+(ENV.modo==='sku'?'on':'')+'">Por SKU (produção)</button></div></div>';
   if(!l.length){h+='<div class="card empty">Nenhum pedido pendente com envio nesta data.</div>';$('#eres').innerHTML=h;bindSeg();return}
   if(ENV.modo==='sku'){
-    var m={};l.forEach(function(o){(o.items||[]).forEach(function(i){var k=i.sku+'||'+i.attr;if(!m[k])m[k]={sku:i.sku,attr:i.attr,img:i.img,name:i.name,qty:0,ped:0};m[k].qty+=(i.qty||1);m[k].ped++})});
+    var m={};l.forEach(function(o){(o.items||[]).forEach(function(i){var k=i.sku+'||'+i.attr;if(!m[k])m[k]={sku:i.sku,attr:i.attr,img:i.img,name:i.name,qty:0,ped:0,lojas:{}};m[k].qty+=(i.qty||1);m[k].ped++;var lk=(o.shop||'-')+'||'+(o.plat||'');m[k].lojas[lk]=(m[k].lojas[lk]||0)+(i.qty||1)})});
     var rows=Object.keys(m).map(function(k){return m[k]}).sort(function(a,b){return a.sku.localeCompare(b.sku)||String(a.attr).localeCompare(String(b.attr))});
-    h+='<div class="tw"><table class="t"><thead><tr><th>Produto</th><th>Variação</th><th class="hm">Pedidos</th><th>Qtd</th></tr></thead><tbody>';
-    rows.forEach(function(r){h+='<tr><td><div class="prod">'+img(r.img)+'<div><div class="sku">'+esc(r.sku)+'</div><div class="muted" style="font-size:12px">'+esc(r.name||'')+'</div></div></div></td><td class="attr">'+esc(r.attr)+'</td><td class="hm">'+r.ped+'</td><td class="qty">'+r.qty+'</td></tr>'});
+    h+='<div class="tw"><table class="t"><thead><tr><th>Produto</th><th>Loja</th><th>Variação</th><th class="hm">Pedidos</th><th>Qtd</th></tr></thead><tbody>';
+    rows.forEach(function(r){h+='<tr><td><div class="prod">'+img(r.img)+'<div><div class="sku">'+esc(r.sku)+'</div><div class="muted" style="font-size:12px">'+esc(r.name||'')+'</div></div></div></td><td>'+lojasHtml(r.lojas)+'</td><td class="attr">'+esc(r.attr)+'</td><td class="hm">'+r.ped+'</td><td class="qty">'+r.qty+'</td></tr>'});
     h+='</tbody></table></div>';
   }else{
     var nsel=l.filter(function(o){return SEL[o.num]}).length, all=nsel===l.length&&l.length>0;
     h+='<div class="selbar no-print"><label class="ck"><input type="checkbox" id="selall"'+(all?' checked':'')+'> Selecionar todos</label>'+
        '<span class="selc">Selecionado <b id="nsel">'+nsel+'</b></span><span class="sp"></span>'+
        '<button class="btn" type="button" id="elbl">🏷️ Imprimir etiquetas</button><button class="btn sec" type="button" id="eprint">Imprimir lista</button></div>';
-    h+='<div class="tw"><table class="t"><thead><tr><th class="cb no-print"></th><th>Produtos</th><th>Pedido</th><th class="hm">Loja</th><th>Prazo</th><th class="hm">Situação</th></tr></thead><tbody>';
+    h+='<div class="tw"><table class="t"><thead><tr><th class="cb no-print"></th><th>Produtos</th><th>Pedido</th><th>Loja</th><th>Prazo</th><th class="hm">Situação</th></tr></thead><tbody>';
     l.forEach(function(o){
       var pr=prazo(o.deadline);
       h+='<tr class="'+(SEL[o.num]?'sel':'')+'"><td class="cb no-print"><input type="checkbox" class="rowck" data-num="'+esc(o.num)+'"'+(SEL[o.num]?' checked':'')+'></td><td>'+(o.items||[]).map(function(i){return '<div class="prod">'+img(i.img)+'<div><div class="sku">'+esc(i.sku)+'</div><div class="attr">'+esc(i.attr)+'</div></div><div class="qty">×'+(i.qty||1)+'</div></div>'}).join('')+'</td>'+
-         '<td><div class="num">'+esc(o.num)+'</div><div style="margin-top:4px">'+platTag(o.plat)+'</div></td><td class="hm">'+esc(o.shop)+'</td>'+
+         '<td><div class="num">'+esc(o.num)+'</div></td><td><div class="loja">'+platTag(o.plat)+' <b>'+esc(o.shop)+'</b></div></td>'+
          '<td class="'+(pr.cls==='late'?'late':'')+'">'+fmtH(o.deadline)+'</td><td class="hm">'+stTag(o.state)+'</td></tr>'});
     h+='</tbody></table></div>';
   }
@@ -369,6 +371,7 @@ function imprimirEtiquetas(){
 }
 addEventListener('afterprint',function(){document.body.classList.remove('pl')});
 function alertBox(m){var e=$('#eres');if(e)e.insertAdjacentHTML('afterbegin','<div class="err">'+esc(m)+'</div>')}
+function lojasHtml(L){return Object.keys(L).sort().map(function(k){var p=k.split('||');return '<div class="loja">'+platTag(p[1])+' <b>'+esc(p[0])+'</b>'+(Object.keys(L).length>1?' <span class="muted">×'+L[k]+'</span>':'')+'</div>'}).join('')}
 function bindSeg(){[].forEach.call(document.querySelectorAll('.seg button'),function(b){b.onclick=function(){ENV.modo=b.getAttribute('data-m');drawEnvios()}})}
 
 /* ---- Consultar SKU ---- */
