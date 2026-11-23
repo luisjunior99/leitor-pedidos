@@ -97,6 +97,13 @@ table.t{width:100%;border-collapse:collapse;background:#fff}
 .cam .x,.zoom .x{position:absolute;bottom:26px;background:#fff;color:#000;border:0;border-radius:10px;padding:12px 22px;font-weight:800;font-size:16px}
 .zoom img{max-width:100%;max-height:100%}
 h2.sec{font-size:15px;margin:18px 2px 10px}
+.selbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:10px;position:sticky;top:60px;z-index:5}
+.selbar .sp{flex:1}
+.selbar .ck{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer}
+.selc{color:var(--muted)}.selc b{color:var(--blue)}
+.t .cb{width:34px;text-align:center}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--blue);cursor:pointer}
+.t tr.sel td{background:#f2f6ff}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .cgrid .card{margin:0}
 .cimgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -110,6 +117,7 @@ h2.sec{font-size:15px;margin:18px 2px 10px}
   body.menu .shade{display:block;position:fixed;inset:52px 0 0 0;background:rgba(0,0,0,.3);z-index:24}
   .main{margin-left:0;padding:64px 12px 40px}
   .t th.hm,.t td.hm{display:none}
+  .selbar,.t .cb,.no-mob{display:none!important}
   .fld{flex:1 1 140px}
 }
 #printarea{display:none}
@@ -275,29 +283,27 @@ function showOrder(o,fromQR){
 
 /* ---- Lista de envios ---- */
 var ENV={dia:today(),plat:'',modo:'ped',data:null};
+var SEL={};
 function vEnvios(){
   var h='<h1 class="pg">Lista de envios</h1>';
   h+='<div class="card no-print"><form class="row" id="fenv">'+
      '<div class="fld"><label>Data de envio</label><input type="date" id="edia" value="'+ENV.dia+'"></div>'+
      '<div class="fld"><label>Marketplace</label><select id="eplat"><option value="">Todas as plataformas</option><option value="tiktok">TikTok Shop</option><option value="mercado">Mercado Livre</option><option value="shopee">Shopee</option></select></div>'+
      '<button class="btn" type="submit">Buscar</button></form>'+
-     '<div class="row" style="margin-top:10px"><div class="fld"><label>Etiqueta</label><select id="esize"><option value="100x50">100 × 50 mm</option><option value="80x40">80 × 40 mm</option><option value="60x30">60 × 30 mm</option></select></div>'+
-     '<button class="btn" type="button" id="elbl">🏷️ Imprimir etiquetas (1 por produto)</button>'+
-     '<button class="btn sec" type="button" id="eprint">Imprimir lista</button></div></div><div id="eres"></div>';
+     '<div class="row" style="margin-top:10px"><div class="fld no-mob"><label>Etiqueta</label><select id="esize"><option value="100x50">100 × 50 mm</option><option value="80x40">80 × 40 mm</option><option value="60x30">60 × 30 mm</option></select></div>'+
+     '</div></div><div id="eres"></div>';
   $('#main').innerHTML=h;
   $('#eplat').value=ENV.plat;
   $('#fenv').onsubmit=function(e){e.preventDefault();ENV.dia=$('#edia').value||today();ENV.plat=$('#eplat').value;buscarEnvios()};
-  $('#eprint').onclick=function(){document.body.classList.remove('pl');$('#pagesize').textContent='@page{size:A4;margin:10mm}';window.print()};
   try{var sz=localStorage.getItem('qp_lbl_size');if(sz)$('#esize').value=sz}catch(e){}
   $('#esize').onchange=function(){try{localStorage.setItem('qp_lbl_size',$('#esize').value)}catch(e){}};
-  $('#elbl').onclick=imprimirEtiquetas;
   if(ENV.data)drawEnvios();else buscarEnvios();
 }
 function buscarEnvios(){
   if(!dbOn){$('#eres').innerHTML='<div class="err">O banco de dados ainda não foi ligado ao site.</div>';return}
   if(!PASS){showLogin('');return}
   $('#eres').innerHTML='<div class="empty">Buscando…</div>';
-  rpc('qp_envios',{p_pass:PASS,p_dia:ENV.dia,p_plat:ENV.plat||null}).then(function(l){ENV.data=l||[];drawEnvios()})
+  rpc('qp_envios',{p_pass:PASS,p_dia:ENV.dia,p_plat:ENV.plat||null}).then(function(l){ENV.data=l||[];SEL={};drawEnvios()})
   .catch(function(e){$('#eres').innerHTML='<div class="err">'+esc(e.message)+'</div>'});
 }
 function drawEnvios(){
@@ -316,15 +322,28 @@ function drawEnvios(){
     rows.forEach(function(r){h+='<tr><td><div class="prod">'+img(r.img)+'<div><div class="sku">'+esc(r.sku)+'</div><div class="muted" style="font-size:12px">'+esc(r.name||'')+'</div></div></div></td><td class="attr">'+esc(r.attr)+'</td><td class="hm">'+r.ped+'</td><td class="qty">'+r.qty+'</td></tr>'});
     h+='</tbody></table></div>';
   }else{
-    h+='<div class="tw"><table class="t"><thead><tr><th>Produtos</th><th>Pedido</th><th class="hm">Loja</th><th>Prazo</th><th class="hm">Situação</th></tr></thead><tbody>';
+    var nsel=l.filter(function(o){return SEL[o.num]}).length, all=nsel===l.length&&l.length>0;
+    h+='<div class="selbar no-print"><label class="ck"><input type="checkbox" id="selall"'+(all?' checked':'')+'> Selecionar todos</label>'+
+       '<span class="selc">Selecionado <b id="nsel">'+nsel+'</b></span><span class="sp"></span>'+
+       '<button class="btn" type="button" id="elbl">🏷️ Imprimir etiquetas</button><button class="btn sec" type="button" id="eprint">Imprimir lista</button></div>';
+    h+='<div class="tw"><table class="t"><thead><tr><th class="cb no-print"></th><th>Produtos</th><th>Pedido</th><th class="hm">Loja</th><th>Prazo</th><th class="hm">Situação</th></tr></thead><tbody>';
     l.forEach(function(o){
       var pr=prazo(o.deadline);
-      h+='<tr><td>'+(o.items||[]).map(function(i){return '<div class="prod">'+img(i.img)+'<div><div class="sku">'+esc(i.sku)+'</div><div class="attr">'+esc(i.attr)+'</div></div><div class="qty">×'+(i.qty||1)+'</div></div>'}).join('')+'</td>'+
+      h+='<tr class="'+(SEL[o.num]?'sel':'')+'"><td class="cb no-print"><input type="checkbox" class="rowck" data-num="'+esc(o.num)+'"'+(SEL[o.num]?' checked':'')+'></td><td>'+(o.items||[]).map(function(i){return '<div class="prod">'+img(i.img)+'<div><div class="sku">'+esc(i.sku)+'</div><div class="attr">'+esc(i.attr)+'</div></div><div class="qty">×'+(i.qty||1)+'</div></div>'}).join('')+'</td>'+
          '<td><div class="num">'+esc(o.num)+'</div><div style="margin-top:4px">'+platTag(o.plat)+'</div></td><td class="hm">'+esc(o.shop)+'</td>'+
          '<td class="'+(pr.cls==='late'?'late':'')+'">'+fmtH(o.deadline)+'</td><td class="hm">'+stTag(o.state)+'</td></tr>'});
     h+='</tbody></table></div>';
   }
-  $('#eres').innerHTML=h;bindSeg();
+  $('#eres').innerHTML=h;bindSeg();bindSel();
+}
+function bindSel(){
+  var l=ENV.data||[];
+  function upd(){var n=l.filter(function(o){return SEL[o.num]}).length;var c=$('#nsel');if(c)c.textContent=n;var a=$('#selall');if(a){a.checked=n===l.length&&n>0;a.indeterminate=n>0&&n<l.length}}
+  [].forEach.call(document.querySelectorAll('.rowck'),function(cb){cb.onchange=function(){var n=cb.getAttribute('data-num');if(cb.checked)SEL[n]=1;else delete SEL[n];cb.closest('tr').classList.toggle('sel',cb.checked);upd()}});
+  var a=$('#selall');if(a)a.onchange=function(){SEL={};if(a.checked)l.forEach(function(o){SEL[o.num]=1});[].forEach.call(document.querySelectorAll('.rowck'),function(cb){cb.checked=a.checked;cb.closest('tr').classList.toggle('sel',a.checked)});upd()};
+  var b=$('#elbl');if(b)b.onclick=imprimirEtiquetas;
+  var p=$('#eprint');if(p)p.onclick=function(){document.body.classList.remove('pl');$('#pagesize').textContent='@page{size:A4;margin:10mm}';window.print()};
+  upd();
 }
 function toLabel(o){
   var p=o.pay_at?new Date(o.pay_at):null, d=o.deadline?new Date(o.deadline):null;
@@ -334,8 +353,9 @@ function toLabel(o){
     items:(o.items||[]).map(function(i){return{sku:i.sku||'',attr:i.attr||'',qty:i.qty||1,img:i.img||'',name:i.name||''}})};
 }
 function imprimirEtiquetas(){
-  var l=ENV.data||[];
-  if(!l.length){alertBox('Busque uma data com pedidos antes de imprimir.');return}
+  var l=(ENV.data||[]).filter(function(o){return SEL[o.num]});
+  if(!(ENV.data||[]).length){alertBox('Busque uma data com pedidos antes de imprimir.');return}
+  if(!l.length){alertBox('Marque os pedidos que quer imprimir (ou use Selecionar todos).');return}
   if(!window.QPLabel){alertBox('Não consegui carregar o gerador de etiquetas. Recarregue a página.');return}
   var sz=($('#esize').value||'100x50').split('x').map(Number);
   var pa=$('#printarea');
