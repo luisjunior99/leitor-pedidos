@@ -491,12 +491,14 @@ route();
 <script>
 /* Atualização automática: o site confere version.json e recarrega a versão nova */
 (function(){
-  var APP_V='2026-11-24-1', novo=null, t0=Date.now();
+  var APP_V='2026-11-25-2', novo=null, t0=Date.now();
   function ir(){ var u=location.pathname+'?v='+encodeURIComponent(novo||Date.now())+location.hash; location.replace(u); }
   function ocupado(){ return !!document.querySelector('video') || (window.getSelection&&String(window.getSelection())) || document.querySelector('input:focus,textarea:focus'); }
   function checar(){
     fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
       if(!j||!j.v||j.v===APP_V) return;
+      // já recarregou para essa versão e ela ainda não bate: não fica em loop
+      if(new URLSearchParams(location.search).get('v')===j.v) return;
       novo=j.v; var b=document.getElementById('qpUpd'); b.style.display='flex';
       if(document.visibilityState==='hidden' || !ocupado()) setTimeout(function(){ if(!ocupado()) ir(); }, 8000);
     }).catch(function(){});
