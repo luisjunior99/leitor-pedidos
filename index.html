@@ -135,6 +135,16 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--blue);cursor:poin
   body{background:#fff}
   .card,.tw{border:0}
 }
+#elojaw{position:relative;min-width:220px}
+.lsel summary{list-style:none;cursor:pointer;border:1px solid #cfd6e4;border-radius:8px;padding:0 34px 0 10px;line-height:36px;height:38px;background:#fff;font-size:14px;white-space:nowrap;position:relative;border-color:#cfd5df;border-radius:7px}
+.lsel summary::-webkit-details-marker{display:none}
+.lsel summary::after{content:"▾";position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#555}
+.lsel .lopts{position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:300px;max-height:60vh;overflow:auto;background:#fff;border:1px solid #e1e5ee;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px 0}
+.lsel .lopts label{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:14px;margin:0;color:#111;white-space:nowrap}
+.lsel .lopts label:hover{background:#f3f5fa}
+.lsel .lopts .lall{font-weight:700;border-bottom:1px solid #eef0f5}
+.lsel .lopts .lc{margin-left:auto;color:#888;font-size:12px;padding-left:14px}
+.lsel .lopts .plat{font-size:10px;padding:2px 5px}
 </style>
 </head>
 <body>
@@ -286,7 +296,28 @@ function showOrder(o,fromQR){
 }
 
 /* ---- Lista de envios ---- */
-var ENV={dia:today(),plat:'',modo:'ped',data:null};
+var ENV={dia:today(),plat:'',modo:'ped',data:null,lojas:[]};
+try{ENV.lojas=JSON.parse(localStorage.getItem('qp_lojas')||'[]')||[]}catch(e){}
+function lkey(o){return (o.plat||'')+'||'+(o.shop||'')}
+function lst(){var l=ENV.data||[];if(!ENV.lojas.length)return l;return l.filter(function(o){return ENV.lojas.indexOf(lkey(o))>=0})}
+function drawLojas(){
+  var w=$('#elojaw');if(!w)return;var all=ENV.data||[],m={};
+  all.forEach(function(o){var k=lkey(o);if(!m[k])m[k]={plat:o.plat,shop:o.shop||'(sem loja)',n:0};m[k].n++});
+  var ks=Object.keys(m).sort(function(a,b){return m[a].shop.localeCompare(m[b].shop)});
+  var sel=ENV.lojas.filter(function(k){return m[k]});
+  var lab=!sel.length?'Todas as lojas':(sel.length===1?m[sel[0]].shop:sel.length+' lojas');
+  w.innerHTML='<label>Loja</label><details class="lsel" id="eloja"'+(w.getAttribute('data-open')?' open':'')+'><summary>'+esc(lab)+'</summary><div class="lopts">'+
+    (ks.length?'<label class="lall"><input type="checkbox" data-all'+(sel.length?'':' checked')+'> Todas as lojas</label>'+
+      ks.map(function(k){return '<label><input type="checkbox" value="'+esc(k)+'"'+(sel.indexOf(k)>=0?' checked':'')+'> '+platTag(m[k].plat)+' <span class="ln">'+esc(m[k].shop)+'</span><span class="lc">'+m[k].n+'</span></label>'}).join('')
+     :'<div class="muted" style="padding:6px 12px">Busque uma data primeiro</div>')+'</div></details>';
+  var d=$('#eloja');
+  d.addEventListener('toggle',function(){if(d.open)w.setAttribute('data-open','1');else w.removeAttribute('data-open')});
+  d.addEventListener('change',function(ev){var t=ev.target;if(!t||t.type!=='checkbox')return;
+    if(t.hasAttribute('data-all')){ENV.lojas=[]}else{ENV.lojas=[].slice.call(d.querySelectorAll('input:not([data-all]):checked')).map(function(i){return i.value})}
+    try{localStorage.setItem('qp_lojas',JSON.stringify(ENV.lojas))}catch(e){}
+    SEL={};drawLojas();drawEnvios()});
+}
+document.addEventListener('click',function(ev){var d=$('#eloja');if(d&&d.open&&!d.contains(ev.target)){d.open=false}});
 var SEL={};
 function vEnvios(){
   var h='<h1 class="pg">Lista de envios</h1>';
@@ -295,30 +326,32 @@ function vEnvios(){
      '<div class="fld"><label>Marketplace</label><select id="eplat"><option value="">Todas as plataformas</option><option value="tiktok">TikTok Shop</option><option value="mercado">Mercado Livre</option><option value="shopee">Shopee</option></select></div>'+
      '<button class="btn" type="submit">Buscar</button></form>'+
      '<div class="row" style="margin-top:10px"><div class="fld no-mob"><label>Etiqueta</label><select id="esize"><option value="100x50">100 × 50 mm</option><option value="80x40">80 × 40 mm</option><option value="60x30">60 × 30 mm</option></select></div>'+
+     '<div class="fld" id="elojaw"></div>'+
      '</div></div><div id="eres"></div>';
   $('#main').innerHTML=h;
   $('#eplat').value=ENV.plat;
   $('#fenv').onsubmit=function(e){e.preventDefault();ENV.dia=$('#edia').value||today();ENV.plat=$('#eplat').value;buscarEnvios()};
   try{var sz=localStorage.getItem('qp_lbl_size');if(sz)$('#esize').value=sz}catch(e){}
   $('#esize').onchange=function(){try{localStorage.setItem('qp_lbl_size',$('#esize').value)}catch(e){}};
+  drawLojas();
   if(ENV.data)drawEnvios();else buscarEnvios();
 }
 function buscarEnvios(){
   if(!dbOn){$('#eres').innerHTML='<div class="err">O banco de dados ainda não foi ligado ao site.</div>';return}
   if(!PASS){showLogin('');return}
   $('#eres').innerHTML='<div class="empty">Buscando…</div>';
-  rpc('qp_envios',{p_pass:PASS,p_dia:ENV.dia,p_plat:ENV.plat||null}).then(function(l){ENV.data=l||[];SEL={};drawEnvios()})
+  rpc('qp_envios',{p_pass:PASS,p_dia:ENV.dia,p_plat:ENV.plat||null}).then(function(l){ENV.data=l||[];SEL={};drawLojas();drawEnvios()})
   .catch(function(e){$('#eres').innerHTML='<div class="err">'+esc(e.message)+'</div>'});
 }
 function drawEnvios(){
-  var l=ENV.data||[],pcs=0,byP={},byS={};
+  var l=lst(),pcs=0,byP={},byS={};
   l.forEach(function(o){(o.items||[]).forEach(function(i){pcs+=(i.qty||1)});byP[o.plat]=(byP[o.plat]||0)+1;byS[o.state]=(byS[o.state]||0)+1});
   var d=ENV.dia.split('-');
   var h='<div class="chips"><span class="chip">Envio em <b>'+d[2]+'/'+d[1]+'/'+d[0]+'</b></span><span class="chip"><b>'+l.length+'</b> pedidos</span><span class="chip"><b>'+pcs+'</b> peças</span>';
   Object.keys(byP).forEach(function(k){h+='<span class="chip">'+platTag(k)+' <b>'+byP[k]+'</b></span>'});
   Object.keys(byS).forEach(function(k){h+='<span class="chip">'+esc(STATE[k]||k)+' <b>'+byS[k]+'</b></span>'});
   h+='</div><div class="row no-print" style="margin-bottom:10px"><div class="seg"><button data-m="ped" class="'+(ENV.modo==='ped'?'on':'')+'">Por pedido</button><button data-m="sku" class="'+(ENV.modo==='sku'?'on':'')+'">Por SKU (produção)</button></div></div>';
-  if(!l.length){h+='<div class="card empty">Nenhum pedido pendente com envio nesta data.</div>';$('#eres').innerHTML=h;bindSeg();return}
+  if(!l.length){h+='<div class="card empty">'+((ENV.data||[]).length&&ENV.lojas.length?'Nenhum pedido das lojas escolhidas nesta data. Ajuste o filtro "Loja".':'Nenhum pedido pendente com envio nesta data.')+'</div>';$('#eres').innerHTML=h;bindSeg();return}
   if(ENV.modo==='sku'){
     var m={};l.forEach(function(o){(o.items||[]).forEach(function(i){var k=i.sku+'||'+i.attr;if(!m[k])m[k]={sku:i.sku,attr:i.attr,img:i.img,name:i.name,qty:0,ped:0,lojas:{}};m[k].qty+=(i.qty||1);m[k].ped++;var lk=(o.shop||'-')+'||'+(o.plat||'');m[k].lojas[lk]=(m[k].lojas[lk]||0)+(i.qty||1)})});
     var rows=Object.keys(m).map(function(k){return m[k]}).sort(function(a,b){return a.sku.localeCompare(b.sku)||String(a.attr).localeCompare(String(b.attr))});
@@ -341,7 +374,7 @@ function drawEnvios(){
   $('#eres').innerHTML=h;bindSeg();bindSel();
 }
 function bindSel(){
-  var l=ENV.data||[];
+  var l=lst();
   function upd(){var n=l.filter(function(o){return SEL[o.num]}).length;var c=$('#nsel');if(c)c.textContent=n;var a=$('#selall');if(a){a.checked=n===l.length&&n>0;a.indeterminate=n>0&&n<l.length}}
   [].forEach.call(document.querySelectorAll('.rowck'),function(cb){cb.onchange=function(){var n=cb.getAttribute('data-num');if(cb.checked)SEL[n]=1;else delete SEL[n];cb.closest('tr').classList.toggle('sel',cb.checked);upd()}});
   var a=$('#selall');if(a)a.onchange=function(){SEL={};if(a.checked)l.forEach(function(o){SEL[o.num]=1});[].forEach.call(document.querySelectorAll('.rowck'),function(cb){cb.checked=a.checked;cb.closest('tr').classList.toggle('sel',a.checked)});upd()};
@@ -357,8 +390,8 @@ function toLabel(o){
     items:(o.items||[]).map(function(i){return{sku:i.sku||'',attr:i.attr||'',qty:i.qty||1,img:i.img||'',name:i.name||''}})};
 }
 function imprimirEtiquetas(){
-  var l=(ENV.data||[]).filter(function(o){return SEL[o.num]});
-  if(!(ENV.data||[]).length){alertBox('Busque uma data com pedidos antes de imprimir.');return}
+  var l=lst().filter(function(o){return SEL[o.num]});
+  if(!lst().length){alertBox('Busque uma data com pedidos antes de imprimir.');return}
   if(!l.length){alertBox('Marque os pedidos que quer imprimir (ou use Selecionar todos).');return}
   if(!window.QPLabel){alertBox('Não consegui carregar o gerador de etiquetas. Recarregue a página.');return}
   var sz=($('#esize').value||'100x50').split('x').map(Number);
